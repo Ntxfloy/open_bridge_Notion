@@ -19,7 +19,7 @@ CONFIG_FILE = Path(os.environ.get("NB_CONFIG_FILE", str(BASE_DIR / "config.json"
 STATE_DIR = Path(os.environ.get("NB_STATE_DIR", str(BASE_DIR / "state")))
 
 VALID_MODES = ("safe", "developer", "agent")
-VALID_TUNNEL_MODES = ("auto", "cloudflared", "pinggy", "named", "external", "none")
+VALID_TUNNEL_MODES = ("auto", "cloudflared", "pinggy", "ngrok", "named", "external", "none")
 VALID_CONFIRM = ("never", "dangerous", "always")
 VALID_SHELLS = ("auto", "pwsh", "powershell", "cmd", "bash", "sh")
 
@@ -68,9 +68,10 @@ def default_config() -> dict:
         "mode": "developer",         # safe | developer | agent
         "workspaces": {},            # alias -> absolute folder path
         "default_workspace": "",
-        "tunnel_mode": "auto",       # auto | cloudflared | pinggy | named | external | none
+        "tunnel_mode": "auto",       # auto | cloudflared | pinggy | ngrok | named | external | none
         "cloudflare_tunnel_token": "",
-        "public_url": "",            # for named/external tunnels, e.g. https://pc.example.com
+        "public_url": "",            # for ngrok/named/external tunnels, e.g. https://name.ngrok-free.dev
+        "ngrok_path": "",            # optional full path to ngrok.exe
         "allowed_hosts": [],         # extra Host headers accepted on the MCP port
         "allowed_origins": [],       # browser Origins accepted on the MCP port (normally none)
         "stateless_http": True,
@@ -192,6 +193,7 @@ def validate(raw: dict):
     out.pop("auto_fallback_pinggy", None)  # 2.0.0 had it opt-in by mistake; fallback is always on in auto
     out["cloudflare_tunnel_token"] = str(cfg.get("cloudflare_tunnel_token") or "")
     out["public_url"] = str(cfg.get("public_url") or "").rstrip("/")
+    out["ngrok_path"] = str(cfg.get("ngrok_path") or "")
     out["allowed_hosts"] = _as_str_list(cfg.get("allowed_hosts"), [])
     out["allowed_origins"] = _as_str_list(cfg.get("allowed_origins"), [])
     out["stateless_http"] = bool(cfg.get("stateless_http", d["stateless_http"]))

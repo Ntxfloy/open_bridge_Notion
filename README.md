@@ -84,6 +84,9 @@ Quick tunnel даёт новый URL при каждом запуске; для 
   запоминается (`tunnel_state.json`) и при следующем запуске пробуется первым. Нужен `ssh.exe` (встроенный «Клиент OpenSSH»).
 - `pinggy` — сразу только SSH-туннели; `cloudflared` — только Cloudflare. Режим можно переключить в панели.
 - URL бесплатных туннелей меняется при переподключении (Pinggy — примерно раз в час) — обновляйте его в Notion.
+- `ngrok` — постоянный бесплатный адрес ngrok: один раз `ngrok config add-authtoken <токен>`, положите `ngrok.exe`
+  рядом с `server.py` (или в `resources\bin` / PATH / `ngrok_path`), `public_url` = ваш статический домен
+  (`https://xxx.ngrok-free.dev`). Ссылка не меняется при перезапуске.
 - `named` — постоянный Cloudflare Tunnel: `cloudflare_tunnel_token` + `public_url` (ваш домен → `http://127.0.0.1:8767`).
 - `external` — свой туннель (Tailscale Funnel, ngrok…), укажите `public_url`; Host добавится в разрешённые.
 - `none` — без туннеля.
@@ -96,6 +99,8 @@ Quick tunnel даёт новый URL при каждом запуске; для 
 - Переменные окружения: `NB_CONFIG_FILE`, `NB_STATE_DIR`.
 
 ## CHANGELOG
+
+2.0.4 — режим туннеля `ngrok` (постоянный адрес на бесплатном статическом домене ngrok).
 
 2.0.3 — `latex_build` поддерживает Tectonic (`engine="tectonic"`, в `auto` — если нет TeX Live/MiKTeX; режим
 `--untrusted`), подсказка про кириллицу без шрифта; `resources\bin` ищется и внутри папки (раскладка git clone).

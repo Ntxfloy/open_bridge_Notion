@@ -5,6 +5,7 @@ Modes (config "tunnel_mode"):
                 (Pinggy, then localhost.run). The provider that worked last time is tried first on the next start.
   cloudflared - quick tunnel only
   pinggy      - SSH tunnels only (Pinggy <-> localhost.run rotation)
+  ngrok       - ngrok agent with your free static domain (public_url), authtoken from `ngrok config add-authtoken`
   named       - your own Cloudflare tunnel: stable URL (`cloudflared tunnel run --token ...`), set public_url
   external    - you run the tunnel yourself (Tailscale Funnel, ngrok static domain...), set public_url
   none        - local only
@@ -31,6 +32,7 @@ class TunnelManager:
     REGISTERED_RE = re.compile(r"Registered tunnel connection|Connection [0-9a-f-]+ registered", re.I)
     CF_URL_RE = re.compile(r"https://[a-zA-Z0-9-]+\.trycloudflare\.com")
     SSH_URL_RE = re.compile(r"https://(?!dashboard\.|www\.)[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*\.(?:free\.pinggy\.net|pinggy-free\.link|pinggy\.link)", re.I)
+    NGROK_READY_RE = re.compile(r'msg="?started tunnel|url=https://', re.I)
     ANSI_RE = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
     # Lines that must never reach the log in clear text
     SECRET_RE = re.compile(r"(--token\s+|token=)[A-Za-z0-9._-]+")
@@ -59,6 +61,17 @@ class TunnelManager:
             if c.exists():
                 return str(c)
         return shutil.which("cloudflared") or ""
+
+    def ngrok(self) -> str:
+        name = "ngrok.exe" if IS_WIN else "ngrok"
+        custom = (runtime.config.get("ngrok_path") or "").strip().strip('"')
+        app_dir = Path(__file__).resolve().parent.parent
+        cands = [Path(custom)] if custom else []
+        cands += [self.bin_dir / name, app_dir / name, app_dir.parent / name, Path.home() / "ngrok" / name]
+        for c in cands:
+            if c.is_file():
+                return str(c)
+        return shutil.which("ngrok") or ""
 
     def _tlog(self, line: str):
         try:
@@ -141,9 +154,10 @@ class TunnelManager:
                 self.status = "online"
                 self.last_error = ""
                 activity.log("Tunnel", f"Online at {self.public_url} ({label})")
-                self._save_pref(label.split("/", 1)[1] if label.startswith("ssh/") else "cloudflare")
+                if label != "ngrok":
+                    self._save_pref(label.split("/", 1)[1] if label.startswith("ssh/") else "cloudflare")
             low = line.lower()
-            if not state["online"] and (" err " in low or "error" in low or "failed" in low):
+            if not state["online"] and (" err " in low or "error" in low or "failed" in low or "lvl=eror" in low or "err_ngrok" in low):
                 self.last_error = self.SECRET_RE.sub(r"\1***", line[-220:])
         try:
             proc.wait(timeout=3)
@@ -203,7 +217,25 @@ class TunnelManager:
             self.public_url = None
             self.status = "connecting"
             delay = 10
-            if mode == "named":
+            if mode == "ngrok":
+                exe, url = self.ngrok(), (cfg.get("public_url") or "").rstrip("/")
+                if not (exe and url):
+                    self.status, self.last_error = "error", ("ngrok mode needs ngrok.exe (next to server.py, resources/bin, "
+                                                             "PATH or ngrok_path) and public_url = your static domain in config.json")
+                    activity.log("Tunnel", self.last_error, status="error")
+                    return
+                if not url.startswith("http"):
+                    url = "https://" + url
+                self.provider = "ngrok"
+                activity.log("Tunnel", f"Starting ngrok tunnel {url} -> 127.0.0.1:{self.port}...")
+                cmd = [exe, "http", f"127.0.0.1:{self.port}", "--url", url, "--log", "stdout", "--log-format", "logfmt"]
+                ok = self._run_once(gen, cmd, "ngrok", None, self.NGROK_READY_RE, 45, fixed_url=url)
+                if not ok and ("authtoken" in self.last_error.lower() or "ERR_NGROK_4018" in self.last_error or "ERR_NGROK_105" in self.last_error):
+                    self.last_error = "ngrok: no authtoken. Run once: ngrok config add-authtoken <token from dashboard.ngrok.com>"
+                elif not ok and ("ERR_NGROK_334" in self.last_error or "already online" in self.last_error):
+                    self.last_error = "ngrok: this domain is already used by another ngrok process (close it)"
+                delay = 5 if ok else 20
+            elif mode == "named":
                 exe, tok, url = self.cloudflared(), cfg.get("cloudflare_tunnel_token"), cfg.get("public_url")
                 if not (exe and tok and url):
                     self.status, self.last_error = "error", "named mode needs cloudflared, cloudflare_tunnel_token and public_url in config.json"

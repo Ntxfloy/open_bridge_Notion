@@ -2,7 +2,7 @@
 
 Two HTTP servers run in one event loop:
   * MCP endpoint   127.0.0.1:<mcp_port>  (/mcp = Streamable HTTP, /sse = legacy SSE).
-    The tunnel (cloudflared / pinggy / named) forwards the public URL here. Every request needs
+    The tunnel (cloudflared / pinggy / ngrok / named) forwards the public URL here. Every request needs
     "Authorization: Bearer <token>"; Host and Origin are validated (DNS-rebinding protection).
   * Dashboard      127.0.0.1:<dashboard_port>  - local UI, never tunneled, guarded by a per-start key.
 """

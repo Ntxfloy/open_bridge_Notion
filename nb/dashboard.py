@@ -106,7 +106,7 @@ def build(tunnel, hist: history.History, mcp_port: int, dash_port: int, static_d
             "version": __version__, "mode": runtime.mode(), "caps": sorted(runtime.caps()),
             "tunnel": {"status": tunnel.status, "provider": tunnel.provider, "public_url": tunnel.public_url,
                        "last_error": tunnel.last_error, "mode": cfg.get("tunnel_mode"),
-                       "has_ssh": bool(shutil.which("ssh")), "has_cloudflared": bool(tunnel.cloudflared())},
+                       "has_ssh": bool(shutil.which("ssh")), "has_cloudflared": bool(tunnel.cloudflared()), "has_ngrok": bool(tunnel.ngrok())},
             "endpoints": endpoints(),
             "token_hint": (tok[:3] + "…" + tok[-4:]) if tok else "",
             "workspaces": [{"alias": a, "path": p, "default": a == cfg.get("default_workspace"), "exists": os.path.isdir(p)}
