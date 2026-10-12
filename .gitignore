@@ -1,0 +1,23 @@
+# secrets and local state - never commit
+config.json
+config.json.corrupt
+.config.*.tmp
+state/
+tunnel.log
+tunnel.log.1
+tunnel_state.json
+
+# bundled binaries (download them, see README)
+resources/
+bin/
+*.exe
+
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# local test junk
+_mcp_test/
+b/

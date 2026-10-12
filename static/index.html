@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="bridge-key" content="{{BRIDGE_KEY}}">
+  <title>Open Notion Bridge</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="app-layout">
+  <header class="navbar">
+    <div class="brand">
+      <div class="logo-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg>
+      </div>
+      <div>
+        <h1 class="brand-title">Open Notion Bridge <span class="version" id="versionText"></span></h1>
+        <p class="brand-sub">Локальный MCP-сервер для Notion AI</p>
+      </div>
+    </div>
+    <div class="nav-status">
+      <div class="status-pill" id="serverStatusBadge"><span class="status-dot"></span><span id="serverStatusText">Проверка…</span></div>
+      <div class="status-pill tunnel-pill" id="tunnelStatusBadge"><span class="status-dot"></span><span id="tunnelStatusText">Туннель…</span></div>
+    </div>
+  </header>
+
+  <main class="content-container">
+    <div id="warnings" class="warnings hidden"></div>
+
+    <section id="approvalsCard" class="card glass-card approvals-card hidden">
+      <h3 class="section-title">⚠️ ИИ ждёт вашего подтверждения</h3>
+      <p class="section-sub">Команда не выполнится, пока вы не нажмёте «Разрешить». Без ответа — отказ по таймауту.</p>
+      <div id="approvalsList"></div>
+    </section>
+
+    <section class="grid-cards">
+      <div class="card glass-card endpoint-card">
+        <div class="card-header">
+          <div class="card-icon cyan"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 0 20 15.3 15.3 0 0 1 0-20z"/></svg></div>
+          <div>
+            <h3>MCP URL для Notion</h3>
+            <p>Notion → Settings → Connections → Custom MCP (Streamable HTTP)</p>
+          </div>
+        </div>
+        <div class="input-action-group">
+          <input type="text" id="endpointInput" readonly value="Ожидание туннеля…">
+          <button class="btn btn-primary" id="copyEndpointBtn"><span>Скопировать</span></button>
+        </div>
+        <div class="card-footer-info column">
+          <span>Старый SSE-адрес (если клиент не умеет /mcp): <code id="sseEndpointText">—</code></span>
+          <span>Локально: <code id="localEndpointText">—</code></span>
+          <span id="tunnelInfo" class="muted"></span>
+          <span class="confirm-row tunnel-row"><label for="tunnelSelect">Туннель:</label>
+            <select id="tunnelSelect">
+              <option value="auto">авто: Cloudflare → Pinggy / localhost.run</option>
+              <option value="pinggy">только SSH (Pinggy / localhost.run)</option>
+              <option value="cloudflared">только Cloudflare</option>
+              <option value="named">свой Cloudflare Tunnel (config.json)</option>
+              <option value="external">внешний URL (config.json)</option>
+              <option value="none">выключен</option>
+            </select></span>
+          <span class="row-actions"><button class="btn-link" id="restartTunnelBtn">Перезапустить туннель</button></span>
+        </div>
+      </div>
+
+      <div class="card glass-card token-card">
+        <div class="card-header">
+          <div class="card-icon amber"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+          <div>
+            <h3>Bearer-токен</h3>
+            <p>В Notion: заголовок <code>Authorization</code> = <code>Bearer &lt;токен&gt;</code></p>
+          </div>
+        </div>
+        <div class="input-action-group">
+          <input type="password" id="tokenInput" readonly value="">
+          <button class="btn btn-secondary" id="toggleTokenBtn" title="Показать/скрыть">👁</button>
+          <button class="btn btn-primary" id="copyTokenBtn"><span>Скопировать</span></button>
+        </div>
+        <div class="card-footer-info">
+          <span class="muted">Только в заголовке — <code>?token=</code> больше не принимается.</span>
+          <button class="btn-link text-danger" id="revokeTokenBtn">Сгенерировать новый</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid-controls">
+      <div class="card glass-card workspace-card">
+        <div class="card-header">
+          <div class="card-icon emerald"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg></div>
+          <div>
+            <h3>Рабочие папки</h3>
+            <p>Файловые инструменты видят только их. Другая папка: <code>@алиас/путь</code></p>
+          </div>
+        </div>
+        <div id="workspaceList" class="ws-list"><div class="empty-state">Загрузка…</div></div>
+        <div class="workspace-action-row">
+          <input type="text" id="wsPathInput" placeholder="Путь к папке (пусто — откроется диалог)">
+          <button class="btn btn-action" id="addWsBtn">Добавить</button>
+        </div>
+        <p class="hint">Терминал (<code>run_command</code>) — не песочница: он работает с правами вашего пользователя Windows.</p>
+      </div>
+
+      <div class="card glass-card mode-card">
+        <div class="card-header">
+          <div class="card-icon violet"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+          <div>
+            <h3>Режим доступа</h3>
+            <p>Применяется сразу, без перезапуска</p>
+          </div>
+        </div>
+        <div class="mode-toggles">
+          <label class="mode-option" data-mode="safe"><input type="radio" name="permMode" value="safe">
+            <div class="mode-box"><span class="mode-title">Безопасный</span><span class="mode-desc">Только чтение, поиск и просмотр git.</span></div></label>
+          <label class="mode-option" data-mode="developer"><input type="radio" name="permMode" value="developer">
+            <div class="mode-box"><span class="mode-title">Разработчик</span><span class="mode-desc">+ правка файлов, команды, git commit.</span></div></label>
+          <label class="mode-option" data-mode="agent"><input type="radio" name="permMode" value="agent">
+            <div class="mode-box"><span class="mode-title">Агент</span><span class="mode-desc">+ скриншоты экрана.</span></div></label>
+        </div>
+        <div class="confirm-row">
+          <label for="confirmSelect">Подтверждать команды:</label>
+          <select id="confirmSelect">
+            <option value="dangerous">только опасные (рекомендуется)</option>
+            <option value="always">все команды</option>
+            <option value="never">никогда</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid-controls">
+      <div class="card glass-card">
+        <div class="activity-header">
+          <div><h3 class="section-title">Изменения файлов</h3><p class="section-sub" id="changesStats">Каждая правка ИИ сохраняется и откатывается</p></div>
+          <button class="btn btn-outline" id="refreshChangesBtn">Обновить</button>
+        </div>
+        <div id="changesList" class="list-box"><div class="empty-state">Пока изменений нет</div></div>
+      </div>
+      <div class="card glass-card">
+        <div class="activity-header">
+          <div><h3 class="section-title">Фоновые процессы</h3><p class="section-sub">Серверы и watcher'ы, запущенные ИИ</p></div>
+        </div>
+        <div id="processList" class="list-box"><div class="empty-state">Нет процессов</div></div>
+      </div>
+    </section>
+
+    <section class="card glass-card guide-card">
+      <h3 class="section-title">Подключение к Notion AI</h3>
+      <div class="steps-row">
+        <div class="step-col"><div class="step-num">1</div><h4>Скопируйте URL</h4><p>Публичный адрес заканчивается на <code>/mcp</code>.</p></div>
+        <div class="step-col"><div class="step-num">2</div><h4>Добавьте MCP</h4><p>Notion → <b>Settings → Connections → Custom MCP</b>, вставьте URL.</p></div>
+        <div class="step-col"><div class="step-num">3</div><h4>Авторизация</h4><p>Заголовок <code>Authorization</code> = <code>Bearer &lt;токен&gt;</code>.</p></div>
+        <div class="step-col"><div class="step-num">4</div><h4>Проверка</h4><p>Попросите ИИ «вызови get_status». Сменился URL туннеля — обновите его в Notion.</p></div>
+      </div>
+    </section>
+
+    <section class="card glass-card activity-card">
+      <div class="activity-header">
+        <div><h3 class="section-title">Журнал активности</h3><p class="section-sub">Вызовы инструментов и события безопасности (также state/activity.jsonl)</p></div>
+        <button class="btn btn-outline" id="clearActivityBtn">Очистить экран</button>
+      </div>
+      <div class="activity-feed-wrapper"><div class="activity-list" id="activityList"><div class="empty-state">Ожидание первого запроса от Notion AI…</div></div></div>
+    </section>
+  </main>
+</div>
+<div id="toast" class="toast"></div>
+<script src="/static/app.js"></script>
+</body>
+</html>

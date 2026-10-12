@@ -1,0 +1,23 @@
+{
+  "dashboard_port": 8766,
+  "mcp_port": 8767,
+  "token": "",
+  "mode": "developer",
+  "workspaces": {
+    "main": "C:\\Users\\you\\Projects\\my-project"
+  },
+  "default_workspace": "main",
+  "tunnel_mode": "auto",
+  "cloudflare_tunnel_token": "",
+  "public_url": "",
+  "allowed_hosts": [],
+  "allowed_origins": [],
+  "confirm_commands": "dangerous",
+  "approval_timeout_sec": 180,
+  "shell": "auto",
+  "extra_deny_globs": [],
+  "fallback_encodings": ["cp1251"],
+  "backups": {"enabled": true, "max_total_mb": 1024, "max_age_days": 30, "max_file_mb": 50},
+  "disabled_tools": [],
+  "open_dashboard_on_start": false
+}

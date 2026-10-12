@@ -1,0 +1,10 @@
+# Open Notion Bridge 2.0
+# mcp 2.x removed mcp.server.fastmcp -> pin the 1.x line (tested 1.22 .. 1.30; older 1.x break with current pydantic)
+mcp>=1.22,<2
+uvicorn>=0.30
+starlette>=0.40
+# optional: screenshots (agent mode)
+mss>=9
+Pillow>=10
+# optional: better PDF text extraction (read_document)
+pypdf>=4
